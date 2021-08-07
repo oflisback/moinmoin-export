@@ -3,11 +3,11 @@ import os
 import re
 import sys
 
-def get_content(filename):
+def get_lines(filename):
     f = None
     try:
         f = open(filename)
-        return f.read().strip()
+        return f.readlines()
     except FileNotFoundError:
         print("Ignoring missing file: " + filename)
     except PermissionError:
@@ -32,26 +32,22 @@ def get_last_existing_revision(d):
     if len(numeric_files) > 0:
         return numeric_files[0]
 
-def write_content(content, filename):
-    with open(filename, 'w') as file:
-        file.write(content)
-
+# Replace any initial == Header == with leading *:s, one extra to not
+# conflict with the top article level.
 def replace_headers(s):
-    # Headers: Replace any initial == Header == with leading *:s, one extra to not
-    #          conflict with the top article level.
     for i in range(1,6):
         eq = "=" * i
         stars = "*" * (i + 1)
         s = re.sub(r'^{}([^=][\s\S]+?[^=]){}'.format(eq,eq), r'{}\1'.format(stars),s)
     return s
 
+# Bold text: Replace '''<text>''' with <text>
 def remove_bold(s):
     return re.sub(r'\'\'\'([\s\S]+?)\'\'\'', r'\1',s)
 
 def replace_table_separators(s):
     return re.sub(r'\|\|([\S+?\s*?]+?)\|\|', r'|\1|',s)
 
-# Bold: replace '''<text>''' with <text>
 def moin_line_to_org_line(l):
     if len(l) <= 0:
         return l
@@ -64,48 +60,48 @@ def moin_line_to_org_line(l):
 
     return l
 
-def moin_text_to_org_text(text):
-    result = []
-    [result.append(moin_line_to_org_line(l) + '\n') for l in text.splitlines()]
-    return ''.join(result)
-
-def append_to_org(article_name, content, org_output_file):
+def append_to_org(article_name, lines, org_output_file):
     with open(org_output_file, 'a' if os.path.exists(org_output_file) else 'w') as file:
-        file.write("* " + article_name + "\n")
-        file.write(moin_text_to_org_text(content))
+        lines = list(map(lambda l: moin_line_to_org_line(l), lines))
+        lines.insert(0, "* " + article_name + '\n')
+        file.writelines(lines)
 
 def moin_article_to_output(article, org_output_file, output_dir):
-    revision = get_content(os.path.join(article, "current"))
-    if revision is None:
+    revision_lines = get_lines(os.path.join(article, "current"))
+    if revision_lines is None:
         revision = get_last_existing_revision(article)
         if revision is None:
             print("No revisions found, giving up on: " + article)
             return
         print("Instead using: " + revision)
+    else:
+        revision = revision_lines[0].strip()
     data_file = os.path.join(article,"revisions",revision)
-    content = get_content(data_file)
-    if content is None:
+    article_lines = get_lines(data_file)
+    if article_lines is None:
         revision = get_last_existing_revision(article)
         if revision is None:
             print("No revisions found, giving up on: " + article)
             return
         print("Instead using: " + revision)
     article_name = os.path.basename(article)
-    if content:
+    if article_lines:
         if output_dir:
-            write_content(content, os.path.join(output_dir, article_name))
+            with open(os.path.join(output_dir, article_name), 'w') as file:
+                file.writelines(article_lines)
         if org_output_file:
-            append_to_org(article_name, content, org_output_file)
+            append_to_org(article_name, article_lines, org_output_file)
 
 def main():
     parser = argparse.ArgumentParser(description='Convert moinmoin pages to text files or an org mode wiki.')
-    parser.add_argument('-p, --pages-dir', dest="pages_dir", help='an integer for the accumulator')
+    parser.add_argument('pages', help='path to moinmoin pages')
     parser.add_argument('--org-file', dest="org_output_file", help='path to output org mode wiki file')
     parser.add_argument('-o, --output-dir', dest="output_dir", help='output dir')
 
     args = parser.parse_args()
-    dirs = [os.path.abspath(os.path.join(args.pages_dir, f)) for f in os.listdir(args.pages_dir) if os.path.isdir(os.path.join(args.pages_dir, f))]
-    [moin_article_to_output(d, args.org_output_file,args.output_dir) for d in dirs]
+    dirs = [os.path.abspath(os.path.join(args.pages, f)) for f in os.listdir(args.pages) if os.path.isdir(os.path.join(args.pages, f))]
+    for d in dirs:
+        moin_article_to_output(d, args.org_output_file,args.output_dir)
 
 if __name__ == '__main__':
     main()
