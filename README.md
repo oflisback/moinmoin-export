@@ -1,1 +1,21 @@
-This project performs rudimentary export of moinmoin pages to separate files or to an org-mode file.
+This project performs basic export of moinmoin pages to separate files or to an [https://orgmode.org](org mode) file.
+
+# Usage
+
+Optionally rename moinmoin pages directories to convert its unicode representation to regular utf-8:
+
+```
+python rename.py <moinmoin-pages-path>
+```
+
+Extract the latest revisions of each page to a plain text file:
+
+```
+python export.py -p <moinmoin-pages-dir> -o <output-dir>
+```
+
+Extract the latest revisions of each page to an org mode file:
+
+```
+python export.py -p <moinmoin-pages-dir> --org-file <org-output-file>
+```
