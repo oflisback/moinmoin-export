@@ -100,6 +100,7 @@ def main():
 
     args = parser.parse_args()
     dirs = [os.path.abspath(os.path.join(args.pages, f)) for f in os.listdir(args.pages) if os.path.isdir(os.path.join(args.pages, f))]
+    dirs.sort()
     for d in dirs:
         moin_article_to_output(d, args.org_output_file,args.output_dir)
 
